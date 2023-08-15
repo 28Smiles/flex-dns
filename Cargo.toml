@@ -1,0 +1,15 @@
+[package]
+name = "flex-dns"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["arrayvec", "heapless"]
+vec = []
+
+[dependencies]
+arrayvec = { version = "0", default-features = false, optional = true }
+heapless = { version = "0", default-features = false, optional = true }
+
+[dev-dependencies]
+simple-dns = "0"
