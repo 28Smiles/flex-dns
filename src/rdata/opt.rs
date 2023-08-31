@@ -1,4 +1,4 @@
-use crate::{Buffer, DnsMessage, DnsMessageError};
+use crate::{Buffer, DnsMessage, DnsMessageError, MutBuffer};
 use crate::characters::Characters;
 use crate::parse::Parse;
 use crate::rdata::{RData, RDataParse};
@@ -32,7 +32,7 @@ impl<'a> WriteBytes for Opt<'a> {
     fn write<
         const PTR_STORAGE: usize,
         const DNS_SECTION: usize,
-        B: Buffer,
+        B: MutBuffer + Buffer,
     >(&self, message: &mut DnsMessage<PTR_STORAGE, DNS_SECTION, B>) -> Result<usize, DnsMessageError> {
         let mut bytes = 0;
 

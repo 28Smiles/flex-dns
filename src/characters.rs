@@ -1,5 +1,5 @@
 use core::fmt::Display;
-use crate::{Buffer, DnsError, DnsMessage, DnsMessageError};
+use crate::{Buffer, DnsError, DnsMessage, DnsMessageError, MutBuffer};
 use crate::parse::ParseBytes;
 use crate::write::WriteBytes;
 
@@ -111,9 +111,13 @@ impl<'a> ParseBytes<'a> for Characters<'a> {
 
 impl<'a> WriteBytes for Characters<'a> {
     #[inline]
-    fn write<const PTR_STORAGE: usize, const DNS_SECTION: usize, B: Buffer>(
+    fn write<
+        const PTR_STORAGE: usize,
+        const DNS_SECTION: usize,
+        B: MutBuffer + Buffer,
+    >(
         &self,
-        message: &mut DnsMessage<PTR_STORAGE, DNS_SECTION, B>
+        message: &mut DnsMessage<PTR_STORAGE, DNS_SECTION, B>,
     ) -> Result<usize, DnsMessageError> {
         let mut bytes = 0;
 

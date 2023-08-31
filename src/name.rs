@@ -1,5 +1,5 @@
 use core::fmt::{Debug, Display, Formatter};
-use crate::{Buffer, DnsError, DnsMessage, DnsMessageError};
+use crate::{Buffer, DnsError, DnsMessage, DnsMessageError, MutBuffer};
 use crate::parse::ParseBytes;
 use crate::write::WriteBytes;
 
@@ -163,7 +163,7 @@ impl<'a> WriteBytes for DnsName<'a> {
     fn write<
         const PTR_STORAGE: usize,
         const DNS_SECTION: usize,
-        B: Buffer,
+        B: MutBuffer + Buffer,
     >(&self, message: &mut DnsMessage<PTR_STORAGE, DNS_SECTION, B>) -> Result<usize, DnsMessageError> {
         message.write_name(*self)
     }

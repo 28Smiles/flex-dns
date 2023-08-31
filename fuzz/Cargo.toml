@@ -9,7 +9,6 @@ cargo-fuzz = true
 
 [dependencies]
 afl = "0"
-arrayvec = "0"
 
 [dependencies.flex-dns]
 path = ".."

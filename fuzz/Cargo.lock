@@ -49,7 +49,7 @@ checksum = "7059fff8937831a9ae6f0fe4d658ffabf58f2ca96aa9dec1c889f936f705f216"
 
 [[package]]
 name = "flex-dns"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "arrayvec",
  "heapless",
@@ -60,7 +60,6 @@ name = "flex-dns-fuzz"
 version = "0.0.0"
 dependencies = [
  "afl",
- "arrayvec",
  "flex-dns",
 ]
 

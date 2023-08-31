@@ -1,4 +1,4 @@
-use crate::{Buffer, DnsMessage, DnsMessageError};
+use crate::{Buffer, DnsMessage, DnsMessageError, MutBuffer};
 use crate::characters::Characters;
 use crate::name::DnsName;
 use crate::parse::Parse;
@@ -45,7 +45,7 @@ impl<'a> WriteBytes for Svcb<'a> {
     fn write<
         const PTR_STORAGE: usize,
         const DNS_SECTION: usize,
-        B: Buffer,
+        B: MutBuffer + Buffer,
     >(&self, message: &mut DnsMessage<PTR_STORAGE, DNS_SECTION, B>) -> Result<usize, DnsMessageError> {
         let mut bytes = 0;
 

@@ -100,7 +100,7 @@ pub use caa::Caa;
 pub use ta::Ta;
 pub use dlv::Dlv;
 
-use crate::{Buffer, DnsError, DnsMessage, DnsMessageError};
+use crate::{Buffer, DnsError, DnsMessage, DnsMessageError, MutBuffer};
 use crate::parse::{Parse, ParseData};
 use crate::question::DnsQType;
 use crate::write::WriteBytes;
@@ -211,7 +211,11 @@ impl<'a> RData<'a> {
 }
 
 impl<'a> WriteBytes for RData<'a> {
-    fn write<const PTR_STORAGE: usize, const DNS_SECTION: usize, B: Buffer>(
+    fn write<
+        const PTR_STORAGE: usize,
+        const DNS_SECTION: usize,
+        B: MutBuffer + Buffer,
+    >(
         &self,
         message: &mut DnsMessage<PTR_STORAGE, DNS_SECTION, B>
     ) -> Result<usize, DnsMessageError> {
@@ -344,7 +348,7 @@ impl<'a> WriteBytes for DnsAType<'a> {
     fn write<
         const PTR_STORAGE: usize,
         const DNS_SECTION: usize,
-        B: Buffer,
+        B: MutBuffer + Buffer,
     >(&self, message: &mut DnsMessage<PTR_STORAGE, DNS_SECTION, B>) -> Result<usize, DnsMessageError> {
         match self {
             DnsAType::A(r) => r.write(message),
@@ -443,7 +447,7 @@ mod testutils {
     {
         let mut message: DnsMessage<
             0, 0, arrayvec::ArrayVec<u8, { crate::DNS_HEADER_SIZE + N }>
-        > = DnsMessage::new(arrayvec::ArrayVec::new()).unwrap();
+        > = DnsMessage::new_mut(arrayvec::ArrayVec::new()).unwrap();
         a.write(&mut message).unwrap();
         let buffer = message.abort().unwrap();
         assert_eq!(&buffer[crate::DNS_HEADER_SIZE..], expected.as_slice());
@@ -459,7 +463,7 @@ mod testutils {
     {
         let mut message: DnsMessage<
             0, 0, heapless::Vec<u8, { crate::DNS_HEADER_SIZE + N }>
-        > = DnsMessage::new(heapless::Vec::new()).unwrap();
+        > = DnsMessage::new_mut(heapless::Vec::new()).unwrap();
         a.write(&mut message).unwrap();
         let buffer = message.abort().unwrap();
         assert_eq!(&buffer[crate::DNS_HEADER_SIZE..], expected.as_slice());
@@ -475,7 +479,7 @@ mod testutils {
     {
         let mut message: DnsMessage<
             0, 0, alloc::vec::Vec<u8>
-        > = DnsMessage::new(alloc::vec::Vec::new()).unwrap();
+        > = DnsMessage::new_mut(alloc::vec::Vec::new()).unwrap();
         a.write(&mut message).unwrap();
         let buffer = message.abort().unwrap();
         assert_eq!(&buffer[crate::DNS_HEADER_SIZE..], expected.as_slice());

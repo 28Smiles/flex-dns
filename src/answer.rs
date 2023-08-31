@@ -1,4 +1,4 @@
-use crate::{Buffer, DnsMessage, DnsMessageError};
+use crate::{Buffer, DnsMessage, DnsMessageError, MutBuffer};
 use crate::name::DnsName;
 use crate::parse::{Parse, ParseBytes};
 use crate::question::DnsQType;
@@ -27,32 +27,13 @@ impl<
         }
     }
 
-    /// Append an answer to the message. This will overwrite the next
-    /// answer or further sections, if any.
-    pub fn append(&mut self, answer: DnsAnswer<DnsAType>) -> Result<(), DnsMessageError> {
-        let (buffer, position) = self.message.buffer_and_position();
-        // Truncate the buffer to the current position.
-        buffer.truncate(*position)?;
-        answer.write(&mut self.message)?;
-        // Set answer_count in the header to the current answer count + 1.
-        let answer_count = self.message.header().unwrap().answer_count();
-        let answer_count = answer_count + 1 - self.remaining as u16;
-        self.message.header_mut()?.set_answer_count(answer_count);
-        self.message.header_mut()?.set_name_server_count(0);
-        self.message.header_mut()?.set_additional_records_count(0);
-        self.remaining = 0;
-
-        Ok(())
-    }
-
     /// Return an iterator over the answers section.
     #[inline(always)]
     pub fn iter(&mut self) -> Result<DnsAnswerIterator, DnsMessageError> {
-        let (buffer, position) = self.message.buffer_and_position();
-        let buffer = buffer.bytes();
+        let (bytes, position) = self.message.bytes_and_position();
 
         Ok(DnsAnswerIterator {
-            buffer,
+            buffer: bytes,
             current_position: position,
             remaining: &mut self.remaining,
         })
@@ -72,6 +53,28 @@ impl<
             ptr_storage: self.message.ptr_storage,
             ptr_len: self.message.ptr_len,
         })
+    }
+}
+
+impl<
+    const PTR_STORAGE: usize,
+    B: MutBuffer + Buffer,
+> DnsAnswers<PTR_STORAGE, B> {
+    /// Append an answer to the message. This will overwrite the next
+    /// answer or further sections, if any.
+    pub fn append(&mut self, answer: DnsAnswer<DnsAType>) -> Result<(), DnsMessageError> {
+        // Truncate the buffer to the current position.
+        self.message.truncate()?;
+        answer.write(&mut self.message)?;
+        // Set answer_count in the header to the current answer count + 1.
+        let answer_count = self.message.header().unwrap().answer_count();
+        let answer_count = answer_count + 1 - self.remaining as u16;
+        self.message.header_mut()?.set_answer_count(answer_count);
+        self.message.header_mut()?.set_name_server_count(0);
+        self.message.header_mut()?.set_additional_records_count(0);
+        self.remaining = 0;
+
+        Ok(())
     }
 }
 
@@ -153,7 +156,7 @@ impl<'a> WriteBytes for DnsAnswer<'a, DnsAType<'a>> {
     fn write<
         const PTR_STORAGE: usize,
         const DNS_SECTION: usize,
-        B: Buffer,
+        B: MutBuffer + Buffer,
     >(&self, message: &mut DnsMessage<PTR_STORAGE, DNS_SECTION, B>) -> Result<usize, DnsMessageError> {
         let mut bytes = 0;
         // Write the name to the buffer using the pointer storage for compression.

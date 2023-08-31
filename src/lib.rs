@@ -18,8 +18,11 @@ pub mod name_servers;
 pub mod additional;
 pub mod answer;
 pub mod rdata;
+pub mod buffer;
 mod parse;
 mod write;
+
+pub use buffer::{Buffer, MutBuffer};
 
 #[derive(Debug, PartialEq)]
 pub enum DnsMessageError {
@@ -66,476 +69,13 @@ pub enum BufferError {
     OffsetOutOfBounds,
 }
 
-pub trait Buffer {
-    /// The whole buffer as a slice.
-    fn bytes(&self) -> &[u8];
-
-    /// The length of the data in the buffer.
-    fn len(&self) -> usize;
-
-    /// Truncates the buffer to the given length.
-    fn truncate(&mut self, new_len: usize) -> Result<(), BufferError>;
-
-    /// Writes the given data at the given offset.
-    fn write_array_at<const BYTES: usize>(&mut self, offset: usize, data: [u8; BYTES]) -> Result<(), BufferError>;
-
-    /// Writes the given data at the end of the buffer.
-    fn write_bytes(&mut self, data: &[u8]) -> Result<(), BufferError>;
-
-    /// Writes the given data at the end of the buffer.
-    fn write_array<const BYTES: usize>(&mut self, data: [u8; BYTES]) -> Result<(), BufferError>;
-
-    /// Reads a given number of bytes at the given offset.
-    fn read_bytes_at(&self, offset: usize, length: usize) -> Result<&[u8], BufferError>;
-
-    /// Reads a given number of bytes at the given offset.
-    fn read_bytes_at_mut(&mut self, offset: usize, length: usize) -> Result<&mut [u8], BufferError>;
-}
-
-#[cfg(any(feature = "heapless", feature = "arrayvec", feature = "vec"))]
-#[inline(always)]
-fn check_length<const SIZE: usize>(offset: usize, length: usize) -> Result<(), BufferError> {
-    if offset + length > SIZE {
-        if offset > SIZE {
-            return Err(BufferError::OffsetOutOfBounds);
-        }
-        return Err(BufferError::LengthOutOfBounds);
-    }
-
-    Ok(())
-}
-
-#[cfg(feature = "arrayvec")]
-impl<const SIZE: usize> Buffer for arrayvec::ArrayVec<u8, SIZE> {
-    #[inline(always)]
-    fn bytes(&self) -> &[u8] {
-        self.as_slice()
-    }
-
-    #[inline(always)]
-    fn len(&self) -> usize {
-        arrayvec::ArrayVec::len(self)
-    }
-
-    #[inline(always)]
-    fn truncate(&mut self, new_len: usize) -> Result<(), BufferError> {
-        if new_len > self.len() {
-            return Err(BufferError::InvalidLength);
-        }
-
-        arrayvec::ArrayVec::truncate(self, new_len);
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn write_array_at<const BYTES: usize>(&mut self, offset: usize, data: [u8; BYTES]) -> Result<(), BufferError> {
-        check_length::<SIZE>(offset, BYTES)?;
-        // Grow the buffer to the required size
-        unsafe { self.set_len(core::cmp::max(self.len(), offset + BYTES)); };
-        self.as_mut_slice()[offset..offset + BYTES].copy_from_slice(&data);
-
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn write_bytes(&mut self, data: &[u8]) -> Result<(), BufferError> {
-        check_length::<SIZE>(self.len(), data.len())?;
-        self.try_extend_from_slice(data).map_err(|_| BufferError::OutOfMemory)?;
-
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn write_array<const BYTES: usize>(&mut self, data: [u8; BYTES]) -> Result<(), BufferError> {
-        check_length::<SIZE>(self.len(), BYTES)?;
-        self.try_extend_from_slice(&data).map_err(|_| BufferError::OutOfMemory)?;
-
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn read_bytes_at(&self, offset: usize, length: usize) -> Result<&[u8], BufferError> {
-        if offset + length > self.len() {
-            if offset > self.len() {
-                return Err(BufferError::OffsetOutOfBounds);
-            }
-            return Err(BufferError::LengthOutOfBounds);
-        }
-
-        Ok(&self.as_slice()[offset..offset + length])
-    }
-
-    #[inline(always)]
-    fn read_bytes_at_mut(&mut self, offset: usize, length: usize) -> Result<&mut [u8], BufferError> {
-        check_length::<SIZE>(offset, length)?;
-        unsafe { self.set_len(core::cmp::max(self.len(), offset + length)); };
-        Ok(&mut self.as_mut_slice()[offset..offset + length])
-    }
-}
-
-#[cfg(feature = "arrayvec")]
-impl<const SIZE: usize> Buffer for &'_ mut arrayvec::ArrayVec<u8, SIZE> {
-    #[inline(always)]
-    fn bytes(&self) -> &[u8] {
-        self.as_slice()
-    }
-
-    #[inline(always)]
-    fn len(&self) -> usize {
-        arrayvec::ArrayVec::len(self)
-    }
-
-    #[inline(always)]
-    fn truncate(&mut self, new_len: usize) -> Result<(), BufferError> {
-        if new_len > self.len() {
-            return Err(BufferError::InvalidLength);
-        }
-
-        arrayvec::ArrayVec::truncate(self, new_len);
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn write_array_at<const BYTES: usize>(&mut self, offset: usize, data: [u8; BYTES]) -> Result<(), BufferError> {
-        check_length::<SIZE>(offset, BYTES)?;
-        // Grow the buffer to the required size
-        unsafe { self.set_len(core::cmp::max(self.len(), offset + BYTES)); };
-        self.as_mut_slice()[offset..offset + BYTES].copy_from_slice(&data);
-
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn write_bytes(&mut self, data: &[u8]) -> Result<(), BufferError> {
-        check_length::<SIZE>(self.len(), data.len())?;
-        self.try_extend_from_slice(data).map_err(|_| BufferError::OutOfMemory)?;
-
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn write_array<const BYTES: usize>(&mut self, data: [u8; BYTES]) -> Result<(), BufferError> {
-        check_length::<SIZE>(self.len(), BYTES)?;
-        self.try_extend_from_slice(&data).map_err(|_| BufferError::OutOfMemory)?;
-
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn read_bytes_at(&self, offset: usize, length: usize) -> Result<&[u8], BufferError> {
-        if offset + length > self.len() {
-            if offset > self.len() {
-                return Err(BufferError::OffsetOutOfBounds);
-            }
-            return Err(BufferError::LengthOutOfBounds);
-        }
-
-        Ok(&self.as_slice()[offset..offset + length])
-    }
-
-    #[inline(always)]
-    fn read_bytes_at_mut(&mut self, offset: usize, length: usize) -> Result<&mut [u8], BufferError> {
-        check_length::<SIZE>(offset, length)?;
-        unsafe { self.set_len(core::cmp::max(self.len(), offset + length)); };
-        Ok(&mut self.as_mut_slice()[offset..offset + length])
-    }
-}
-
-#[cfg(feature = "heapless")]
-impl<const SIZE: usize> Buffer for &'_ mut heapless::Vec<u8, SIZE> {
-    #[inline(always)]
-    fn bytes(&self) -> &[u8] {
-        self.as_slice()
-    }
-
-    #[inline(always)]
-    fn len(&self) -> usize {
-        self.bytes().len()
-    }
-
-    #[inline(always)]
-    fn truncate(&mut self, new_len: usize) -> Result<(), BufferError> {
-        if new_len > self.len() {
-            return Err(BufferError::InvalidLength);
-        }
-
-        heapless::Vec::truncate(self, new_len);
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn write_array_at<const BYTES: usize>(&mut self, offset: usize, data: [u8; BYTES]) -> Result<(), BufferError> {
-        check_length::<SIZE>(offset, BYTES)?;
-        // Grow the buffer to the required size
-        unsafe { self.set_len(core::cmp::max(self.len(), offset + BYTES)); };
-        self[offset..offset + BYTES].copy_from_slice(&data);
-
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn write_bytes(&mut self, data: &[u8]) -> Result<(), BufferError> {
-        check_length::<SIZE>(self.len(), data.len())?;
-        self.extend_from_slice(data).map_err(|_| BufferError::OutOfMemory)?;
-
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn write_array<const BYTES: usize>(&mut self, data: [u8; BYTES]) -> Result<(), BufferError> {
-        check_length::<SIZE>(self.len(), BYTES)?;
-        self.extend_from_slice(&data).map_err(|_| BufferError::OutOfMemory)?;
-
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn read_bytes_at(&self, offset: usize, length: usize) -> Result<&[u8], BufferError> {
-        if offset + length > self.len() {
-            if offset > self.len() {
-                return Err(BufferError::OffsetOutOfBounds);
-            }
-            return Err(BufferError::LengthOutOfBounds);
-        }
-
-        Ok(&self.as_slice()[offset..offset + length])
-    }
-
-    #[inline(always)]
-    fn read_bytes_at_mut(&mut self, offset: usize, length: usize) -> Result<&mut [u8], BufferError> {
-        check_length::<SIZE>(offset, length)?;
-        unsafe { self.set_len(core::cmp::max(self.len(), offset + length)); };
-        Ok(&mut self[offset..offset + length])
-    }
-}
-
-#[cfg(feature = "heapless")]
-impl<const SIZE: usize> Buffer for heapless::Vec<u8, SIZE> {
-    #[inline(always)]
-    fn bytes(&self) -> &[u8] {
-        self.as_slice()
-    }
-
-    #[inline(always)]
-    fn len(&self) -> usize {
-        self.bytes().len()
-    }
-
-    #[inline(always)]
-    fn truncate(&mut self, new_len: usize) -> Result<(), BufferError> {
-        if new_len > self.len() {
-            return Err(BufferError::InvalidLength);
-        }
-
-        heapless::Vec::truncate(self, new_len);
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn write_array_at<const BYTES: usize>(&mut self, offset: usize, data: [u8; BYTES]) -> Result<(), BufferError> {
-        check_length::<SIZE>(offset, BYTES)?;
-        // Grow the buffer to the required size
-        unsafe { self.set_len(core::cmp::max(self.len(), offset + BYTES)); };
-        self[offset..offset + BYTES].copy_from_slice(&data);
-
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn write_bytes(&mut self, data: &[u8]) -> Result<(), BufferError> {
-        check_length::<SIZE>(self.len(), data.len())?;
-        self.extend_from_slice(data).map_err(|_| BufferError::OutOfMemory)?;
-
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn write_array<const BYTES: usize>(&mut self, data: [u8; BYTES]) -> Result<(), BufferError> {
-        check_length::<SIZE>(self.len(), BYTES)?;
-        self.extend_from_slice(&data).map_err(|_| BufferError::OutOfMemory)?;
-
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn read_bytes_at(&self, offset: usize, length: usize) -> Result<&[u8], BufferError> {
-        if offset + length > self.len() {
-            if offset > self.len() {
-                return Err(BufferError::OffsetOutOfBounds);
-            }
-            return Err(BufferError::LengthOutOfBounds);
-        }
-
-        Ok(&self.as_slice()[offset..offset + length])
-    }
-
-    #[inline(always)]
-    fn read_bytes_at_mut(&mut self, offset: usize, length: usize) -> Result<&mut [u8], BufferError> {
-        check_length::<SIZE>(offset, length)?;
-        unsafe { self.set_len(core::cmp::max(self.len(), offset + length)); };
-        Ok(&mut self[offset..offset + length])
-    }
-}
-
-#[cfg(feature = "vec")]
-mod vec {
-    extern crate alloc;
-
-    use crate::{Buffer, BufferError};
-
-    impl Buffer for alloc::vec::Vec<u8> {
-        #[inline(always)]
-        fn bytes(&self) -> &[u8] {
-            self.as_slice()
-        }
-
-        #[inline(always)]
-        fn len(&self) -> usize {
-            <alloc::vec::Vec<u8>>::len(self)
-        }
-
-        #[inline(always)]
-        fn truncate(&mut self, new_len: usize) -> Result<(), BufferError> {
-            if new_len > self.len() {
-                return Err(BufferError::InvalidLength);
-            }
-
-            <alloc::vec::Vec<u8>>::truncate(self, new_len);
-            Ok(())
-        }
-
-        #[inline(always)]
-        fn write_array_at<const BYTES: usize>(&mut self, offset: usize, data: [u8; BYTES]) -> Result<(), BufferError> {
-            if offset + BYTES > self.len() {
-                if offset > self.len() {
-                    return Err(BufferError::OffsetOutOfBounds);
-                }
-                return Err(BufferError::LengthOutOfBounds);
-            }
-
-            self.as_mut_slice()[offset..offset + BYTES].copy_from_slice(&data);
-
-            Ok(())
-        }
-
-        #[inline(always)]
-        fn write_bytes(&mut self, data: &[u8]) -> Result<(), BufferError> {
-            self.extend_from_slice(data);
-            Ok(())
-        }
-
-        #[inline(always)]
-        fn write_array<const BYTES: usize>(&mut self, data: [u8; BYTES]) -> Result<(), BufferError> {
-            self.extend_from_slice(&data);
-            Ok(())
-        }
-
-        #[inline(always)]
-        fn read_bytes_at(&self, offset: usize, length: usize) -> Result<&[u8], BufferError> {
-            if offset + length > self.len() {
-                if offset > self.len() {
-                    return Err(BufferError::OffsetOutOfBounds);
-                }
-                return Err(BufferError::LengthOutOfBounds);
-            }
-
-            Ok(&self.as_slice()[offset..offset + length])
-        }
-
-        #[inline(always)]
-        fn read_bytes_at_mut(&mut self, offset: usize, length: usize) -> Result<&mut [u8], BufferError> {
-            if offset + length > self.len() {
-                if offset > self.len() {
-                    return Err(BufferError::OffsetOutOfBounds);
-                }
-                return Err(BufferError::LengthOutOfBounds);
-            }
-
-            Ok(&mut self.as_mut_slice()[offset..offset + length])
-        }
-    }
-
-    impl Buffer for &'_ mut alloc::vec::Vec<u8> {
-        #[inline(always)]
-        fn bytes(&self) -> &[u8] {
-            self.as_slice()
-        }
-
-        #[inline(always)]
-        fn len(&self) -> usize {
-            <alloc::vec::Vec<u8>>::len(self)
-        }
-
-        #[inline(always)]
-        fn truncate(&mut self, new_len: usize) -> Result<(), BufferError> {
-            if new_len > self.len() {
-                return Err(BufferError::InvalidLength);
-            }
-
-            <alloc::vec::Vec<u8>>::truncate(self, new_len);
-            Ok(())
-        }
-
-        #[inline(always)]
-        fn write_array_at<const BYTES: usize>(&mut self, offset: usize, data: [u8; BYTES]) -> Result<(), BufferError> {
-            if offset + BYTES > self.len() {
-                if offset > self.len() {
-                    return Err(BufferError::OffsetOutOfBounds);
-                }
-                return Err(BufferError::LengthOutOfBounds);
-            }
-
-            self.as_mut_slice()[offset..offset + BYTES].copy_from_slice(&data);
-
-            Ok(())
-        }
-
-        #[inline(always)]
-        fn write_bytes(&mut self, data: &[u8]) -> Result<(), BufferError> {
-            self.extend_from_slice(data);
-            Ok(())
-        }
-
-        #[inline(always)]
-        fn write_array<const BYTES: usize>(&mut self, data: [u8; BYTES]) -> Result<(), BufferError> {
-            self.extend_from_slice(&data);
-            Ok(())
-        }
-
-        #[inline(always)]
-        fn read_bytes_at(&self, offset: usize, length: usize) -> Result<&[u8], BufferError> {
-            if offset + length > self.len() {
-                if offset > self.len() {
-                    return Err(BufferError::OffsetOutOfBounds);
-                }
-                return Err(BufferError::LengthOutOfBounds);
-            }
-
-            Ok(&self.as_slice()[offset..offset + length])
-        }
-
-        #[inline(always)]
-        fn read_bytes_at_mut(&mut self, offset: usize, length: usize) -> Result<&mut [u8], BufferError> {
-            if offset + length > self.len() {
-                if offset > self.len() {
-                    return Err(BufferError::OffsetOutOfBounds);
-                }
-                return Err(BufferError::LengthOutOfBounds);
-            }
-
-            Ok(&mut self.as_mut_slice()[offset..offset + length])
-        }
-    }
-}
-
-
 const DNS_HEADER_SIZE: usize = 12;
 
 /// A DNS message.
 pub struct DnsMessage<
     const PTR_STORAGE: usize,
     const DNS_SECTION: usize,
-    B: Buffer,
+    B,
 > {
     buffer: B,
     position: usize,
@@ -575,9 +115,9 @@ impl<
 > DnsMessage<PTR_STORAGE, SECTION, B> {
     /// Creates a new DNS message with the given buffer.
     #[inline(always)]
-    pub fn new(mut buffer: B) -> Result<Self, DnsMessageError> {
+    pub fn new(buffer: B) -> Result<Self, DnsMessageError> {
         if buffer.len() < DNS_HEADER_SIZE {
-            buffer.write_bytes(&[0; DNS_HEADER_SIZE])?;
+            return Err(DnsMessageError::DnsError(DnsError::MessageTooShort));
         }
 
         Ok(Self {
@@ -586,11 +126,6 @@ impl<
             ptr_storage: [0; PTR_STORAGE],
             ptr_len: 0,
         })
-    }
-
-    #[inline(always)]
-    pub(crate) fn buffer_and_position(&mut self) -> (&mut B, &mut usize) {
-        (&mut self.buffer, &mut self.position)
     }
 
     /// Resets the message to the start of the buffer.
@@ -610,15 +145,6 @@ impl<
         Ok(self.buffer)
     }
 
-    /// Returns the header of the message as a mutable reference.
-    #[inline(always)]
-    pub fn header_mut(&mut self) -> Result<&mut DnsHeader, DnsMessageError> {
-        self.position = core::cmp::max(self.position, DNS_HEADER_SIZE);
-        Ok(DnsHeader::from_bytes_mut(
-            self.buffer.read_bytes_at_mut(0, DNS_HEADER_SIZE)?
-        ))
-    }
-
     /// Returns the header of the message (read-only reference).
     #[inline(always)]
     pub fn header(&self) -> Result<&DnsHeader, DnsMessageError> {
@@ -632,11 +158,53 @@ impl<
     }
 
     #[inline(always)]
+    pub(crate) fn bytes_and_position(&mut self) -> (&[u8], &mut usize) {
+        (self.buffer.bytes(), &mut self.position)
+    }
+}
+
+impl<
+    const PTR_STORAGE: usize,
+    const SECTION: usize,
+    B: MutBuffer + Buffer,
+> DnsMessage<PTR_STORAGE, SECTION, B> {
+    /// Creates a new DNS message with the given buffer.
+    #[inline(always)]
+    pub fn new_mut(mut buffer: B) -> Result<Self, DnsMessageError> {
+        if buffer.len() < DNS_HEADER_SIZE {
+            buffer.write_bytes(&[0; DNS_HEADER_SIZE])?;
+        }
+
+        Ok(Self {
+            buffer,
+            position: DNS_HEADER_SIZE,
+            ptr_storage: [0; PTR_STORAGE],
+            ptr_len: 0,
+        })
+    }
+
+    /// Returns the header of the message as a mutable reference.
+    #[inline(always)]
+    pub fn header_mut(&mut self) -> Result<&mut DnsHeader, DnsMessageError> {
+        self.position = core::cmp::max(self.position, DNS_HEADER_SIZE);
+        Ok(DnsHeader::from_bytes_mut(
+            self.buffer.read_bytes_at_mut(0, DNS_HEADER_SIZE)?
+        ))
+    }
+
+    #[inline(always)]
     pub(crate) fn write_bytes(&mut self, bytes: &[u8]) -> Result<usize, DnsMessageError> {
         self.position += bytes.len();
         self.buffer.write_bytes(bytes)?;
 
         Ok(bytes.len())
+    }
+
+    #[inline(always)]
+    pub(crate) fn truncate(&mut self) -> Result<(), DnsMessageError> {
+        self.buffer.truncate(self.position)?;
+
+        Ok(())
     }
 
     #[inline(always)]
@@ -895,7 +463,7 @@ mod test {
             #[test]
             fn multiple_questions_compression() {
                 let buffer: ArrayVec<u8, 512> = ArrayVec::new();
-                let mut message: DnsMessage<8, 0, _> = DnsMessage::new(buffer).unwrap();
+                let mut message: DnsMessage<8, 0, _> = DnsMessage::new_mut(buffer).unwrap();
                 message.header_mut().unwrap().set_id(0x1234);
                 message.header_mut().unwrap().set_opcode(DnsHeaderOpcode::Query);
                 message.header_mut().unwrap().set_authoritative_answer(false);
@@ -1017,8 +585,8 @@ mod test {
             }
         }
 
-        fn test_question<B: Buffer>(buffer: B) {
-            let mut message: DnsMessage<8, 0, _> = DnsMessage::new(buffer).unwrap();
+        fn test_question<B: Buffer + MutBuffer>(buffer: B) {
+            let mut message: DnsMessage<8, 0, _> = DnsMessage::new_mut(buffer).unwrap();
             message.header_mut().unwrap().set_id(0x1234);
             message.header_mut().unwrap().set_opcode(DnsHeaderOpcode::Query);
             message.header_mut().unwrap().set_authoritative_answer(false);
@@ -1081,7 +649,7 @@ mod test {
         #[test]
         fn single_answer() {
             let buffer: ArrayVec<u8, 512> = ArrayVec::new();
-            let mut message: DnsMessage<8, 0, _> = DnsMessage::new(buffer).unwrap();
+            let mut message: DnsMessage<8, 0, _> = DnsMessage::new_mut(buffer).unwrap();
             message.header_mut().unwrap().set_id(0x1234);
             message.header_mut().unwrap().set_opcode(DnsHeaderOpcode::Query);
             message.header_mut().unwrap().set_authoritative_answer(false);

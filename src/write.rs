@@ -1,10 +1,10 @@
-use crate::{Buffer, DnsMessage, DnsMessageError};
+use crate::{Buffer, DnsMessage, DnsMessageError, MutBuffer};
 
 pub(crate) trait WriteBytes {
     fn write<
         const PTR_STORAGE: usize,
         const DNS_SECTION: usize,
-        B: Buffer,
+        B: MutBuffer + Buffer,
     >(&self, message: &mut DnsMessage<PTR_STORAGE, DNS_SECTION, B>) -> Result<usize, DnsMessageError>;
 }
 
@@ -13,7 +13,7 @@ impl WriteBytes for u8 {
     fn write<
         const PTR_STORAGE: usize,
         const DNS_SECTION: usize,
-        B: Buffer,
+        B: MutBuffer + Buffer,
     >(&self, message: &mut DnsMessage<PTR_STORAGE, DNS_SECTION, B>) -> Result<usize, DnsMessageError> {
         message.write_bytes(&[*self])
     }
@@ -24,7 +24,7 @@ impl WriteBytes for u16 {
     fn write<
         const PTR_STORAGE: usize,
         const DNS_SECTION: usize,
-        B: Buffer,
+        B: MutBuffer + Buffer,
     >(&self, message: &mut DnsMessage<PTR_STORAGE, DNS_SECTION, B>) -> Result<usize, DnsMessageError> {
         message.write_bytes(&self.to_be_bytes())
     }
@@ -35,7 +35,7 @@ impl WriteBytes for u32 {
     fn write<
         const PTR_STORAGE: usize,
         const DNS_SECTION: usize,
-        B: Buffer,
+        B: MutBuffer + Buffer,
     >(&self, message: &mut DnsMessage<PTR_STORAGE, DNS_SECTION, B>) -> Result<usize, DnsMessageError> {
         message.write_bytes(&self.to_be_bytes())
     }
@@ -46,7 +46,7 @@ impl WriteBytes for u64 {
     fn write<
         const PTR_STORAGE: usize,
         const DNS_SECTION: usize,
-        B: Buffer,
+        B: MutBuffer + Buffer,
     >(&self, message: &mut DnsMessage<PTR_STORAGE, DNS_SECTION, B>) -> Result<usize, DnsMessageError> {
         message.write_bytes(&self.to_be_bytes())
     }
@@ -57,7 +57,7 @@ impl<const SIZE: usize> WriteBytes for [u8; SIZE] {
     fn write<
         const PTR_STORAGE: usize,
         const DNS_SECTION: usize,
-        B: Buffer,
+        B: MutBuffer + Buffer,
     >(&self, message: &mut DnsMessage<PTR_STORAGE, DNS_SECTION, B>) -> Result<usize, DnsMessageError> {
         message.write_bytes(self)
     }

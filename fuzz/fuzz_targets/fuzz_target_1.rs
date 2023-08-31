@@ -1,15 +1,11 @@
 #[macro_use]
 extern crate afl;
 
-use arrayvec::ArrayVec;
 use flex_dns::{DnsMessage};
 
 fn main() {
     fuzz!(|data: &[u8]| {
-        let mut buffer: ArrayVec<u8, 4096> = ArrayVec::new();
-        // Copy the bytes
-        buffer.try_extend_from_slice(data[..data.len().min(buffer.capacity())].as_ref()).unwrap();
-        if let Ok(message) = DnsMessage::<16, 0, _>::new(buffer) {
+        if let Ok(message) = DnsMessage::<16, 0, _>::new(data) {
             let _ = message.header();
             if let Ok(header) = message.header() {
                 let _ = header.id();

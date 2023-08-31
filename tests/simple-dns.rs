@@ -21,7 +21,7 @@ fn comparison_question_compressed() {
     let bytes_reference = packet.build_bytes_vec_compressed().unwrap();
 
     let buffer: arrayvec::ArrayVec<u8, 512> = arrayvec::ArrayVec::new();
-    let mut message: DnsMessage<16, 0, _> = DnsMessage::new(buffer).unwrap();
+    let mut message: DnsMessage<16, 0, _> = DnsMessage::new_mut(buffer).unwrap();
     message.header_mut().unwrap().set_id(1);
     message.header_mut().unwrap().set_opcode(DnsHeaderOpcode::Query);
     message.header_mut().unwrap().set_authoritative_answer(false);
@@ -69,7 +69,7 @@ fn comparison_question() {
     let bytes_reference = packet.build_bytes_vec().unwrap();
 
     let buffer: arrayvec::ArrayVec<u8, 512> = arrayvec::ArrayVec::new();
-    let mut message: DnsMessage<0, 0, _> = DnsMessage::new(buffer).unwrap();
+    let mut message: DnsMessage<0, 0, _> = DnsMessage::new_mut(buffer).unwrap();
     message.header_mut().unwrap().set_id(1);
     message.header_mut().unwrap().set_opcode(DnsHeaderOpcode::Query);
     message.header_mut().unwrap().set_authoritative_answer(false);
@@ -125,7 +125,7 @@ fn comparison_answer_compressed() {
     let bytes_reference = packet.build_bytes_vec_compressed().unwrap();
 
     let buffer: arrayvec::ArrayVec<u8, 512> = arrayvec::ArrayVec::new();
-    let mut message: DnsMessage<16, 1, _> = DnsMessage::new(buffer).unwrap();
+    let mut message: DnsMessage<16, 1, _> = DnsMessage::new_mut(buffer).unwrap();
     message.header_mut().unwrap().set_id(1);
     message.header_mut().unwrap().set_opcode(DnsHeaderOpcode::Query);
     message.header_mut().unwrap().set_kind(DnsHeaderKind::Response);
@@ -188,7 +188,7 @@ fn comparison_answer() {
     let bytes_reference = packet.build_bytes_vec().unwrap();
 
     let buffer: arrayvec::ArrayVec<u8, 512> = arrayvec::ArrayVec::new();
-    let mut message: DnsMessage<0, 1, _> = DnsMessage::new(buffer).unwrap();
+    let mut message: DnsMessage<0, 1, _> = DnsMessage::new_mut(buffer).unwrap();
     message.header_mut().unwrap().set_id(1);
     message.header_mut().unwrap().set_opcode(DnsHeaderOpcode::Query);
     message.header_mut().unwrap().set_kind(DnsHeaderKind::Response);
@@ -266,7 +266,7 @@ fn comparison_mixed() {
     let bytes_reference = packet.build_bytes_vec().unwrap();
 
     let buffer: arrayvec::ArrayVec<u8, 512> = arrayvec::ArrayVec::new();
-    let mut message: DnsMessage<0, 0, _> = DnsMessage::new(buffer).unwrap();
+    let mut message: DnsMessage<0, 0, _> = DnsMessage::new_mut(buffer).unwrap();
     message.header_mut().unwrap().set_id(1);
     message.header_mut().unwrap().set_opcode(DnsHeaderOpcode::Query);
     message.header_mut().unwrap().set_kind(DnsHeaderKind::Query);
@@ -359,7 +359,7 @@ fn comparison_mixed_compressed() {
     let bytes_reference = packet.build_bytes_vec_compressed().unwrap();
 
     let buffer: arrayvec::ArrayVec<u8, 512> = arrayvec::ArrayVec::new();
-    let mut message: DnsMessage<16, 0, _> = DnsMessage::new(buffer).unwrap();
+    let mut message: DnsMessage<16, 0, _> = DnsMessage::new_mut(buffer).unwrap();
     message.header_mut().unwrap().set_id(1);
     message.header_mut().unwrap().set_opcode(DnsHeaderOpcode::Query);
     message.header_mut().unwrap().set_kind(DnsHeaderKind::Query);
@@ -460,7 +460,7 @@ fn test_complex() {
     let bytes_reference = packet.build_bytes_vec().unwrap();
 
     let buffer: arrayvec::ArrayVec<u8, 512> = arrayvec::ArrayVec::new();
-    let mut message: DnsMessage<0, 0, _> = DnsMessage::new(buffer).unwrap();
+    let mut message: DnsMessage<0, 0, _> = DnsMessage::new_mut(buffer).unwrap();
     message.header_mut().unwrap().set_id(1);
     message.header_mut().unwrap().set_opcode(DnsHeaderOpcode::Query);
     message.header_mut().unwrap().set_kind(DnsHeaderKind::Query);
