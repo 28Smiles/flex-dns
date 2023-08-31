@@ -2,6 +2,12 @@
 name = "flex-dns"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "A no alloc no std DNS parser and serializer written in Rust."
+repository = "https://github.com/28Smiles/flex-dns"
+documentation = "https://docs.rs/flex-dns"
+readme = "README.md"
+keywords = ["dns", "parser", "serializer", "no-alloc", "no-std"]
 
 [features]
 default = ["arrayvec", "heapless"]
