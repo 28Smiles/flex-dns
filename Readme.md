@@ -1,6 +1,7 @@
 # Flex-Dns
 
 [![Crates](https://badgen.net/crates/v/flex-dns)](https://crates.io/crates/flex-dns)
+[![docs.rs](https://docs.rs/flex-dns/badge.svg)](https://docs.rs/flex-dns)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/28Smiles/flex-dns/actions/workflows/rust.yml/badge.svg)](https://github.com/28Smiles/flex-dns/actions/workflows/rust.yml)
 [![codecov](https://codecov.io/gh/28Smiles/flex-dns/graph/badge.svg?token=Lf3vnP2U5z)](https://codecov.io/gh/28Smiles/flex-dns)
