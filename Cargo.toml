@@ -1,6 +1,6 @@
 [package]
 name = "flex-dns"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 license = "MIT"
 description = "A no alloc no std DNS parser and serializer written in Rust."

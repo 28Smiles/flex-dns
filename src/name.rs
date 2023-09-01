@@ -1,4 +1,5 @@
 use core::fmt::{Debug, Display, Formatter};
+use core::hash::Hash;
 use crate::{Buffer, DnsError, DnsMessage, DnsMessageError, MutBuffer};
 use crate::parse::ParseBytes;
 use crate::write::WriteBytes;
@@ -283,6 +284,21 @@ impl PartialEq<DnsName<'_>> for DnsName<'_> {
         }
 
         true
+    }
+}
+
+impl Hash for DnsName<'_> {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        for part in self.iter() {
+            if let Err(_) = part {
+                // If the name is invalid, we cannot hash it.
+                return;
+            }
+
+            let part = part.unwrap();
+            state.write_u8(part.len() as u8);
+            state.write(part);
+        }
     }
 }
 
